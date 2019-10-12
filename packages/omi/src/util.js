@@ -15,41 +15,49 @@
  * current under-construction element's definition.
  */
 ; (function () {
-  if (
-    // No Reflect, no classes, no need for shim because native custom elements
-    // require ES2015 classes or Reflect.
-    window.Reflect === undefined ||
-    window.customElements === undefined ||
-    // The webcomponentsjs custom elements polyfill doesn't require
-    // ES2015-compatible construction (`super()` or `Reflect.construct`).
-    window.customElements.hasOwnProperty('polyfillWrapFlushCallback')
-  ) {
-    return
-  }
-  const BuiltInHTMLElement = HTMLElement
-  window.HTMLElement = function HTMLElement() {
-    return Reflect.construct(BuiltInHTMLElement, [], this.constructor)
-  }
-  HTMLElement.prototype = BuiltInHTMLElement.prototype
-  HTMLElement.prototype.constructor = HTMLElement
-  Object.setPrototypeOf(HTMLElement, BuiltInHTMLElement)
+	if (
+		// No Reflect, no classes, no need for shim because native custom elements
+		// require ES2015 classes or Reflect.
+		window.Reflect === undefined ||
+		window.customElements === undefined ||
+		// The webcomponentsjs custom elements polyfill doesn't require
+		// ES2015-compatible construction (`super()` or `Reflect.construct`).
+		window.customElements.hasOwnProperty('polyfillWrapFlushCallback')
+	) {
+		return
+	}
+	// 内建的 HTML 节点构造函数
+	const BuiltInHTMLElement = HTMLElement
+	window.HTMLElement = function HTMLElement() {
+		return Reflect.construct(BuiltInHTMLElement, [], this.constructor)
+	}
+	HTMLElement.prototype = BuiltInHTMLElement.prototype
+	HTMLElement.prototype.constructor = HTMLElement
+	Object.setPrototypeOf(HTMLElement, BuiltInHTMLElement)
 })()
 
+// 可优化
 export function cssToDom(css) {
-  const node = document.createElement('style')
-  node.textContent = css
-  return node
+	const node = document.createElement('style')
+	node.textContent = css
+	return node
 }
 
+// 去掉 - 符号并且首字母大写。。。
 export function camelCase(str) {
-  return str.replace(/-(\w)/g, ($, $1) => {
-    return $1.toUpperCase()
-  })
+	return str.replace(/-(\w)/g, ($, $1) => {
+		return $1.toUpperCase()
+	})
 }
 
 export function extend(obj, props) {
-  for (let i in props) obj[i] = props[i]
-  return obj
+	for (let i in props) obj[i] = props[i]
+	return obj
+	// 需要 babel
+	// return {
+	// 	...obj,
+	// 	...props
+	// }
 }
 
 /** Invoke or update a ref, depending on whether it is a function or object ref.
@@ -57,10 +65,10 @@ export function extend(obj, props) {
  *  @param {any} [value]
  */
 export function applyRef(ref, value) {
-  if (ref != null) {
-    if (typeof ref == 'function') ref(value)
-    else ref.current = value
-  }
+	if (ref != null) {
+		if (typeof ref == 'function') ref(value)
+		else ref.current = value
+	}
 }
 
 /**
@@ -70,63 +78,63 @@ export function applyRef(ref, value) {
  * @type {(callback: function) => void}
  */
 export const defer =
-  typeof Promise == 'function'
-    ? Promise.resolve().then.bind(Promise.resolve())
-    : setTimeout
+	typeof Promise == 'function'
+		? Promise.resolve().then.bind(Promise.resolve())
+		: setTimeout
 
 export function isArray(obj) {
-  return Object.prototype.toString.call(obj) === '[object Array]'
+	return Object.prototype.toString.call(obj) === '[object Array]'
 }
 
 
 export function getUse(data, paths) {
-  const obj = []
-  paths.forEach((path, index) => {
-    const isPath = typeof path === 'string'
-    if (isPath) {
-      obj[index] = getTargetByPath(data, path)
-    } else {
-      const key = Object.keys(path)[0]
-      const value = path[key]
-      if (typeof value === 'string') {
-        obj[index] = getTargetByPath(data, value)
-      } else {
-        const tempPath = value[0]
-        if (typeof tempPath === 'string') {
-          const tempVal = getTargetByPath(data, tempPath)
-          obj[index] = value[1] ? value[1](tempVal) : tempVal
-        } else {
-          const args = []
-          tempPath.forEach(path =>{
-            args.push(getTargetByPath(data, path))
-          })
-          obj[index] = value[1].apply(null, args)
-        }
-      }
-      obj[key] = obj[index]
-    }
-  })
-  return obj
+	const obj = []
+	paths.forEach((path, index) => {
+		const isPath = typeof path === 'string'
+		if (isPath) {
+			obj[index] = getTargetByPath(data, path)
+		} else {
+			const key = Object.keys(path)[0]
+			const value = path[key]
+			if (typeof value === 'string') {
+				obj[index] = getTargetByPath(data, value)
+			} else {
+				const tempPath = value[0]
+				if (typeof tempPath === 'string') {
+					const tempVal = getTargetByPath(data, tempPath)
+					obj[index] = value[1] ? value[1](tempVal) : tempVal
+				} else {
+					const args = []
+					tempPath.forEach(path => {
+						args.push(getTargetByPath(data, path))
+					})
+					obj[index] = value[1].apply(null, args)
+				}
+			}
+			obj[key] = obj[index]
+		}
+	})
+	return obj
 }
 
 export function pathToArr(path) {
-	if(typeof path !== 'string' || !path) return []
+	if (typeof path !== 'string' || !path) return []
 	// return path.split(/\.|\[|\]/).filter(name => !!name)
 	return path.replace(/]/g, '').replace(/\[/g, '.').split('.')
 }
 
 export function getTargetByPath(origin, path) {
-  const arr = pathToArr(path)
-  let current = origin
-  for (let i = 0, len = arr.length; i < len; i++) {
-    current = current[arr[i]]
-  }
-  return current
+	const arr = pathToArr(path)
+	let current = origin
+	for (let i = 0, len = arr.length;i < len;i++) {
+		current = current[arr[i]]
+	}
+	return current
 }
 
 const hyphenateRE = /\B([A-Z])/g
 export function hyphenate(str) {
-  return str.replace(hyphenateRE, '-$1').toLowerCase()
+	return str.replace(hyphenateRE, '-$1').toLowerCase()
 }
 
 export function getValByPath(path, current) {

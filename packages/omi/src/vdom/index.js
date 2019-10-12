@@ -9,17 +9,18 @@ import options from '../options'
  * @private
  */
 export function isSameNodeType(node, vnode, hydrating) {
-  if (typeof vnode === 'string' || typeof vnode === 'number') {
-    return node.splitText !== undefined
-  }
-  if (typeof vnode.nodeName === 'string') {
-    return !node._componentConstructor && isNamedNode(node, vnode.nodeName)
-  } else if  (typeof vnode.nodeName === 'function'){
-    return options.mapping[node.nodeName.toLowerCase()] === vnode.nodeName
-  }
-  return hydrating || node._componentConstructor === vnode.nodeName
+	if (typeof vnode === 'string' || typeof vnode === 'number') {
+		return node.splitText !== undefined
+	}
+	if (typeof vnode.nodeName === 'string') {
+		return !node._componentConstructor && isNamedNode(node, vnode.nodeName)
+	} else if (typeof vnode.nodeName === 'function') {
+		return options.mapping[node.nodeName.toLowerCase()] === vnode.nodeName
+	}
+	return hydrating || node._componentConstructor === vnode.nodeName
 }
 
+// TODO: 可读性不是很好。。。
 /**
  * Check if an Element has a given nodeName, case-insensitively.
  *
@@ -27,10 +28,10 @@ export function isSameNodeType(node, vnode, hydrating) {
  * @param {String} nodeName	Unnormalized name to compare against.
  */
 export function isNamedNode(node, nodeName) {
-  return (
-    node.normalizedNodeName === nodeName ||
-    node.nodeName.toLowerCase() === nodeName.toLowerCase()
-  )
+	return (
+		node.normalizedNodeName === nodeName ||
+		node.nodeName.toLowerCase() === nodeName.toLowerCase()
+	)
 }
 
 /**
@@ -42,17 +43,17 @@ export function isNamedNode(node, nodeName) {
  * @returns {Object} props
  */
 export function getNodeProps(vnode) {
-  let props = extend({}, vnode.attributes)
-  props.children = vnode.children
+	let props = extend({}, vnode.attributes)
+	props.children = vnode.children
 
-  let defaultProps = vnode.nodeName.defaultProps
-  if (defaultProps !== undefined) {
-    for (let i in defaultProps) {
-      if (props[i] === undefined) {
-        props[i] = defaultProps[i]
-      }
-    }
-  }
+	let defaultProps = vnode.nodeName.defaultProps
+	if (defaultProps !== undefined) {
+		for (let i in defaultProps) {
+			if (props[i] === undefined) {
+				props[i] = defaultProps[i]
+			}
+		}
+	}
 
-  return props
+	return props
 }

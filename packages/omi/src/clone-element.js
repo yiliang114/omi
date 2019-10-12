@@ -7,6 +7,7 @@ import { h } from './h'
  * @param {Object} props	Attributes/props to add when cloning
  * @param {VNode} rest		Any additional arguments will be used as replacement children.
  */
+// h 函数返回的是一个虚拟 dom
 export function cloneElement(vnode, props) {
   return h(
     vnode.nodeName,

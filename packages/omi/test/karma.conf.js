@@ -5,7 +5,7 @@
 // pullRequest = !String(process.env.TRAVIS_PULL_REQUEST).match(/^(0|false|undefined)$/gi),
 // masterBranch = String(process.env.TRAVIS_BRANCH).match(/^master$/gi),
 // sauceLabs = ci && !pullRequest && masterBranch,
-var coverage = false,
+var coverage = true,
 	sauceLabs = false,
 	performance = !coverage && String(process.env.PERFORMANCE)!=='false',
 	webpack = require('webpack');
@@ -66,14 +66,14 @@ module.exports = function(config) {
 			sauceLabs ? 'saucelabs' : []
 		),
 
-		// 		coverageReporter: {
-		// 			dir: __dirname+'/../coverage',
-		// 			reporters: [
-		// 				{ type: 'text-summary' },
-		// 				{ type: 'html' },
-		// 				{ type: 'lcovonly', subdir: '.', file: 'lcov.info' }
-		// 			]
-		// 		},
+		coverageReporter: {
+			dir: __dirname+'/../coverage',
+			reporters: [
+				{ type: 'text-summary' },
+				{ type: 'html' },
+				{ type: 'lcovonly', subdir: '.', file: 'lcov.info' }
+			]
+		},
 
 		mochaReporter: {
 			showDiff: true
@@ -96,7 +96,7 @@ module.exports = function(config) {
 
 		files: [
 			{ pattern: 'polyfills.js', watched: false },
-			{ pattern: '{browser,shared}/**.js', watched: false }
+			{ pattern: '{browser,shared,unit}/**.js', watched: false }
 		],
 
 		preprocessors: {
@@ -117,10 +117,10 @@ module.exports = function(config) {
 						options: {
 							comments: false,
 							compact: true,
-							plugins : [ 
+							plugins : [
 								'transform-class-properties',
-								["transform-react-jsx", { "pragma":"Omi.h" }] 
-							] 
+								["transform-react-jsx", { "pragma":"Omi.h" }]
+							]
 						}
 					},
 					/* Only Instrument our source files for coverage */

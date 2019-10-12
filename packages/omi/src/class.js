@@ -36,6 +36,7 @@ export function classNames() {
   return classes.join(' ')
 }
 
+// TODO: 抽象的 class 名 ？
 export function extractClass() {
   const [props, ...args] = Array.prototype.slice.call(arguments, 0)
   if (props.class) {
