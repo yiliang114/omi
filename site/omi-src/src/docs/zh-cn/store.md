@@ -86,29 +86,25 @@ Store 里的 data:
 }
 ```
 
-Static use:
+Use 和 Compute 语法如下:
 
 ```jsx
-static use = [
-  'count', //直接字符串，可通过 this.use[0] 访问
-  'arr[0]', //也支持 path，可通过 this.use[1] 访问
-  //支持 json
-  {
-    //alias，可通过 this.use.reverseMotto 访问
-    reverseMotto: [
-      'motto', //path
-      target => target.split('').reverse().join('')  //computed
-    ]
-  },
-  { name: 'arr[1]' }, //{ alias: path }，可通过 this.use.name 访问
-  {
-    //alias，可通过 this.use.fullName 访问
-    fullName: [
-      ['userInfo.firstName', 'userInfo.lastName'], //path array
-      (firstName, lastName) => firstName + lastName //computed
-    ]
-  },
+use = [
+  'count', //直接字符串，可通过 this.using[0] 访问
+  'arr[0]', //也支持 path，可通过 this.using[1] 访问
+  'motto',
+  'userInfo',
+  { name: 'arr[1]' } //{ alias: path }，可通过 this.using.name 访问
 ]
+
+compute = {
+  reverseMotto() {
+    return this.motto.split('').reverse().join('')
+  },
+  fullName() {
+    return this.userInfo.firstName + this.userInfo.lastName
+  }
+}
 ```
 
 下面看看 JSX 中使用:
@@ -126,11 +122,11 @@ render() {
         <span>{this.using[1]}</span>
         <button onClick={this.rename}>rename</button>
       </div>
-      <div>{this.using.reverseMotto}</div><button onClick={this.changeMotto}>change motto</button>
+      <div>{this.computed.reverseMotto}</div><button onClick={this.changeMotto}>change motto</button>
       <div>{this.using.name}</div>
       <div>{this.using[3]}</div>
       <div>
-        {this.using.fullName}
+        {this.computed.fullName}
         <button onClick={this.changeFirstName}>change first name</button>
       </div>
     </div>
@@ -145,7 +141,7 @@ render() {
 
 当 `store.data` 发生变化，依赖变更数据的组件会进行更新，举例说明 Path 命中规则:
 
-| Proxy Path(由数据更改产生) | static use 中的 path | 是否更新 |
+| Proxy Path(由数据更改产生) |  use 中的 path | 是否更新 |
 | ---------- | ---------- | -------- |
 | abc        | abc        | 更新     |
 | abc[1]     | abc        | 更新     |

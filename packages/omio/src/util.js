@@ -186,7 +186,7 @@ export function nProps(props) {
   return result
 }
 
-export function getUse(data, paths) {
+export function getUse(data, paths, out, name) {
   const obj = []
   paths.forEach((path, index) => {
     const isPath = typeof path === 'string'
@@ -213,6 +213,7 @@ export function getUse(data, paths) {
       obj[key] = obj[index]
     }
   })
+  out && (out[name] = obj)
   return obj
 }
 
@@ -223,4 +224,42 @@ export function getTargetByPath(origin, path) {
     current = current[arr[i]]
   }
   return current
+}
+
+
+export function getPath(obj, out, name) {
+
+  const result = {}
+  obj.forEach(item => {
+    if (typeof item === 'string') {
+      result[item] = true
+    } else {
+      const tempPath = item[Object.keys(item)[0]]
+      if (typeof tempPath === 'string') {
+        result[tempPath] = true
+      } else {
+        if(typeof tempPath[0] === 'string'){
+          result[tempPath[0]] = true
+        }else{
+          tempPath[0].forEach(path => result[path] = true)
+        }
+      }
+    }
+  })
+  out && (out[name] = result)
+  return result
+  
+}
+
+export function removeItem(item, arr){
+  for (let i = 0, len = arr.length; i < len; i++) {
+    if (arr[i] === item) {
+      arr.splice(i, 1)
+      break
+    }
+  }
+}
+
+export function Fragment(props) {
+  return props.children
 }

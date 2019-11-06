@@ -1,7 +1,14 @@
-import { cssToDom, isArray, getUse, hyphenate, getValByPath } from './util'
+import {
+	cssToDom,
+	isArray,
+	getUse,
+	hyphenate,
+	getValByPath,
+	removeItem
+} from './util'
 import { diff } from './vdom/diff'
 import options from './options'
-import { getPath } from './define'
+import { getPath } from './util'
 
 let id = 0
 // 定制元素

@@ -86,29 +86,25 @@ Data of store:
 }
 ```
 
-Static use:
+Use and compute grammar:
 
 ```jsx
-static use = [
-  'count', //Direct string, accessible through this.use[0] 
-  'arr[0]', //It also supports path, which is accessible through this.use[1]
-  //Support JSON
-  {
-    //Alias, accessible through this.use.reverseMotto
-    reverseMotto: [
-      'motto', //path
-      target => target.split('').reverse().join('')  //computed
-    ]
-  },
-  { name: 'arr[1]' }, //{ alias: path }，accessible through this.use.name
-  {
-    //alias，accessible through this.use.fullName
-    fullName: [
-      ['userInfo.firstName', 'userInfo.lastName'], //path array
-      (firstName, lastName) => firstName + lastName //computed
-    ]
-  },
+use = [
+  'count', //Direct string, accessible through this.using[0] 
+  'arr[0]', //It also supports path, which is accessible through this.using[1]
+  'motto',
+  'userInfo',
+  { name: 'arr[1]' } //{ alias: path }，accessible through this.using.name
 ]
+
+compute = {
+  reverseMotto() {
+    return this.motto.split('').reverse().join('')
+  },
+  fullName() {
+    return this.userInfo.firstName + this.userInfo.lastName
+  }
+}
 ```
 
 Let's look at the use of JSX:
@@ -126,11 +122,11 @@ render() {
         <span>{this.using[1]}</span>
         <button onClick={this.rename}>rename</button>
       </div>
-      <div>{this.using.reverseMotto}</div><button onClick={this.changeMotto}>change motto</button>
+      <div>{this.computed.reverseMotto}</div><button onClick={this.changeMotto}>change motto</button>
       <div>{this.using.name}</div>
       <div>{this.using[3]}</div>
       <div>
-        {this.using.fullName}
+        {this.computed.fullName}
         <button onClick={this.changeFirstName}>change first name</button>
       </div>
     </div>
@@ -144,7 +140,7 @@ Without alias, you can also access it directly through `this.store.data.xxx'.
 
 ### Path hit rule
 
-| Proxy Path | path in static use   | update |
+| Proxy Path | path in use   | update |
 | ---------- | ---------- | -------- |
 | abc        | abc        | true     |
 | abc[1]     | abc        | true     |

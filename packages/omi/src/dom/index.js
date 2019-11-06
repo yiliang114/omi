@@ -77,7 +77,8 @@ export function setAccessor(node, name, old, value, isSvg, component) {
 		if (value) node.innerHTML = value.__html || ''
 	} else if (name[0] == 'o' && name[1] == 'n') {
 		let useCapture = name !== (name = name.replace(/Capture$/, ''))
-		name = name.toLowerCase().substring(2)
+		let nameLower = name.toLowerCase()
+		name = (nameLower in node ? nameLower : name).slice(2)
 		if (value) {
 			if (!old) {
 				node.addEventListener(name, eventProxy, useCapture)
@@ -93,7 +94,6 @@ export function setAccessor(node, name, old, value, isSvg, component) {
 				node.removeEventListener('touchend', touchEnd, useCapture)
 			}
 		}
-		// 设置监听器
 		; (node._listeners || (node._listeners = {}))[name] = value
 	} else if (node.nodeName === 'INPUT' && name === 'value') {
 		node[name] = value == null ? '' : value

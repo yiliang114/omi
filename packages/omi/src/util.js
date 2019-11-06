@@ -50,6 +50,10 @@ export function camelCase(str) {
 	})
 }
 
+export function Fragment(props) {
+	return props.children
+}
+
 export function extend(obj, props) {
 	for (let i in props) obj[i] = props[i]
 	return obj
@@ -86,8 +90,7 @@ export function isArray(obj) {
 	return Object.prototype.toString.call(obj) === '[object Array]'
 }
 
-
-export function getUse(data, paths) {
+export function getUse(data, paths, out, name) {
 	const obj = []
 	paths.forEach((path, index) => {
 		const isPath = typeof path === 'string'
@@ -114,6 +117,7 @@ export function getUse(data, paths) {
 			obj[key] = obj[index]
 		}
 	})
+	if (out) out[name] = obj
 	return obj
 }
 
@@ -143,4 +147,36 @@ export function getValByPath(path, current) {
 		current = current[prop]
 	})
 	return current
+}
+
+export function getPath(obj, out, name) {
+	const result = {}
+	obj.forEach(item => {
+		if (typeof item === 'string') {
+			result[item] = true
+		} else {
+			const tempPath = item[Object.keys(item)[0]]
+			if (typeof tempPath === 'string') {
+				result[tempPath] = true
+			} else {
+				if (typeof tempPath[0] === 'string') {
+					result[tempPath[0]] = true
+				} else {
+					tempPath[0].forEach(path => (result[path] = true))
+				}
+			}
+		}
+	})
+	if (out) out[name] = result
+	return result
+}
+
+export function removeItem(item, arr) {
+	if (!arr) return
+	for (let i = 0, len = arr.length;i < len;i++) {
+		if (arr[i] === item) {
+			arr.splice(i, 1)
+			break
+		}
+	}
 }

@@ -1,65 +1,97 @@
 import { diff } from './vdom/diff'
 import JSONProxy from './proxy'
 import { getUse } from './util'
+import options from './options'
 
 export function render(vnode, parent, store) {
 	parent = typeof parent === 'string' ? document.querySelector(parent) : parent
 	if (store) {
-		store.instances = []
-		extendStoreUpate(store)
-
-		store.data = new JSONProxy(store.data).observe(false, function (patch) {
-			const patchs = {}
-			if (patch.op === 'remove') {
-				// fix arr splice
-				const kv = getArrayPatch(patch.path, store)
-				patchs[kv.k] = kv.v
-
-				update(patchs, store)
-
-			} else {
-				const key = fixPath(patch.path)
-				patchs[key] = patch.value
-
-				update(patchs, store)
-
+		if (store.data) {
+			observeStore(store)
+		} else {
+			options.isMultiStore = true
+			//Multi-store injection
+			for (let key in store) {
+				observeStore(store[key], key)
 			}
-		})
+		}
 		parent.store = store
 	}
 	return diff(null, vnode, parent, false)
+}
+
+function observeStore(store, key) {
+	store.instances = []
+	store.updateSelfInstances = []
+	extendStoreUpate(store, key)
+
+	store.data = new JSONProxy(store.data).observe(false, function (patch) {
+		const patchs = {}
+		if (patch.op === 'remove') {
+			// fix arr splice
+			const kv = getArrayPatch(patch.path, store)
+			patchs[kv.k] = kv.v
+
+			update(patchs, store)
+
+		} else {
+			const key = fixPath(patch.path)
+			patchs[key] = patch.value
+
+			update(patchs, store)
+
+		}
+	})
 }
 
 function update(patch, store) {
 	store.update(patch)
 }
 
-function extendStoreUpate(store) {
+function extendStoreUpate(store, key) {
 	store.update = function (patch) {
-		const updateAll = matchGlobalData(this.globalData, patch)
-
 		if (Object.keys(patch).length > 0) {
 			this.instances.forEach(instance => {
-				if (
-					updateAll ||
-					this.updateAll ||
-					(instance.constructor.updatePath &&
-						needUpdate(patch, instance.constructor.updatePath)) || (
-						instance._updatePath && needUpdate(patch, instance._updatePath))
-				) {
-					//update this.using
-					if (instance.constructor.use) {
-						instance.using = getUse(store.data, instance.constructor.use)
-					} else if (instance.use) {
-						instance.using = getUse(store.data,  typeof instance.use === 'function' ? instance.use() : instance.use)
-					}
+				compute(instance, key)
+				if (key) {
+					if ((
+						instance._updatePath && instance._updatePath[key] && needUpdate(patch, instance._updatePath[key]))) {
+						if (instance.use) {
+							getUse(store.data, (typeof instance.use === 'function' ? instance.use() : instance.use)[key], instance.using, key)
+						}
 
-					instance.update()
+						instance.update()
+					}
+				} else {
+					if ((
+						instance._updatePath && needUpdate(patch, instance._updatePath))) {
+						if (instance.use) {
+							instance.using = getUse(store.data, typeof instance.use === 'function' ? instance.use() : instance.use)
+						}
+
+						instance.update()
+					}
 				}
 
-				if (instance._updateSelfPath && needUpdate(patch, instance._updateSelfPath)) {
-					this.usingSelf = getUse(store.data, typeof instance.useSelf === 'function' ? instance.useSelf() : instance.useSelf)
-					instance.updateSelf()
+
+			})
+
+			this.updateSelfInstances.forEach(instance => {
+				compute(instance, key)
+				if (key) {
+					if ((
+						instance._updateSelfPath && instance._updateSelfPath[key] && needUpdate(patch, instance._updateSelfPath[key]))) {
+						if (instance.useSelf) {
+							getUse(store.data, (typeof instance.useSelf === 'function' ? instance.useSelf() : instance.useSelf)[key], instance.usingSelf, key)
+						}
+
+						instance.updateSelf()
+					}
+				} else {
+					if (instance._updateSelfPath && needUpdate(patch, instance._updateSelfPath)) {
+						instance.usingSelf = getUse(store.data, typeof instance.useSelf === 'function' ? instance.useSelf() : instance.useSelf)
+						instance.updateSelf()
+					}
 				}
 			})
 			this.onChange && this.onChange(patch)
@@ -67,19 +99,12 @@ function extendStoreUpate(store) {
 	}
 }
 
-export function matchGlobalData(globalData, diffResult) {
-	if (!globalData) return false
-	for (let keyA in diffResult) {
-		if (globalData.indexOf(keyA) > -1) {
-			return true
-		}
-		for (let i = 0, len = globalData.length; i < len; i++) {
-			if (includePath(keyA, globalData[i])) {
-				return true
-			}
+function compute(instance, isMultiStore) {
+	if (instance.compute) {
+		for (let ck in instance.compute) {
+			instance.computed[ck] = instance.compute[ck].call(isMultiStore ? instance.store : instance.store.data)
 		}
 	}
-	return false
 }
 
 export function needUpdate(diffResult, updatePath) {
@@ -129,7 +154,10 @@ function getArrayPatch(path, store) {
 	for (let i = 1, len = arr.length; i < len - 1; i++) {
 		current = current[arr[i]]
 	}
-  return { k: fixArrPath(path), v: current }
+	return {
+		k: fixArrPath(path),
+		v: current
+	}
 }
 
 function fixArrPath(path) {

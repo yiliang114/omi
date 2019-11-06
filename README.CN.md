@@ -1,7 +1,7 @@
 [English](./README.md) | 简体中文 
 
 <p align="center"><img src="https://tencent.github.io/omi/assets/omi-logo2019.svg" alt="omi" width="100"/></p>
-<p align="center"><img src="https://tencent.github.io/omi/assets/omi.jpg" alt="omi" width="1000"/></p>
+<p align="center"><img src="https://tencent.github.io/omi/assets/omi-v6.jpg" alt="omi" width="1000"/></p>
 <h2 align="center">Omi - 前端跨框架跨平台框架</h2>
 <p align="center"><b>基于 Web Components 并支持 IE8+(omio)，小程序(omip) 和 任意前端框架集成</b></p>
 
@@ -46,6 +46,189 @@ render(<my-counter />, 'body', new Store)
 * `<my-counter></my-counter>` 可以用于任意框架或者无框架，比如 `document.createElement('my-counter')`
 
 
+你也可以使用 `useSelf`, `useSelf` 只会更新自身，不更新子组件。使用 `useSelf` 的时候在 JSX 里通过 `usingSelf` 访问对应属性。
+
+你也可以通过 `compute` 去实现 `computed` 计算属性，比如:
+
+```jsx
+define('my-counter', _ => (
+  <div>
+    <button onClick={_.store.sub}>-</button>
+    <span>{_.store.data.count}</span>
+    <button onClick={_.store.add}>+</button>
+    <div>Double: {_.computed.doubleCount}</div>
+  </div>
+), {
+    use: ['count'],
+    compute: {
+      doubleCount() {
+        return this.count * 2
+      }
+    }
+  })
+```
+
+路径也是支持的，比如下面的例子:
+
+```js
+class Store {
+  data = {
+    list: [
+      { name: { first: 'dnt', last: 'zhang' } }
+    ]
+  }
+}
+
+...
+...
+
+define('my-counter', _ => (
+  ...
+  ...
+), {
+    use: [
+      'list[0].name', //可以通过 this.using[0] 访问
+    ],
+    compute: {
+      fullName() {
+        return this.list[0].name.first + this.list[0].name.last
+      }
+    }
+  })
+```
+
+![](https://tencent.github.io/omi/assets/store.cn.jpg)
+
+### 多个 store 注入
+
+```jsx
+import { define, render } from 'omi'
+
+define('my-app', _ => {
+  const store = _.store.storeA
+  const { data, add, sub } = store
+  return (
+    <p>
+      Clicked: {data.count} times
+      <button onClick={add}>+</button>
+      <button onClick={sub}>-</button>
+
+      <div>
+        {_.store.storeB.data.msg}
+        <button  onClick={_.store.storeB.changeMsg}>
+          change storeB's msg
+        </button>
+      </div>
+    </p>
+  )
+}, {
+  useSelf: {
+    storeA: ['count', 'adding'],
+    storeB: ['msg']
+  }
+})
+
+const storeA = new class Store {
+  data = {
+    count: 0,
+    adding: false
+  }
+  sub = () => {
+    this.data.count--
+  }
+  add = () => {
+    this.data.count++
+  }
+}
+
+const storeB = new class Store {
+  data = {
+    msg: 'abc'
+  }
+  changeMsg = () => {
+    this.data.msg = 'bcd'
+  }
+}
+
+render( <my-app /> , 'body', {
+  storeA,
+  storeB
+})
+```
+
+怎么在注入多 store 的时候使用 `compute` and `computed`? 非常简单：
+
+```jsx
+define('my-app', _ => {
+  const store = _.store.storeA
+  const { data, add, sub } = store
+  return (
+    <p>
+      Clicked: {data.count} times
+      <button onClick={add}>+</button>
+      <button onClick={sub}>-</button>
+
+      <div>
+        {_.store.storeB.data.msg}
+        <button onClick={_.store.storeB.changeMsg}>
+          change storeB's msg
+        </button>
+      </div>
+
+      <div>{_.computed.dobuleCount}</div>
+      <div>{_.computed.reverseMsg}</div>
+    </p>
+  )
+}, {
+    useSelf: {
+      storeA: ['count', 'adding'],
+      storeB: ['msg']
+    },
+    compute: {
+      dobuleCount() {
+        return this.storeA.data.count * 2
+      },
+      reverseMsg() {
+        return this.storeB.data.msg.split('').reverse().join('')
+      }
+    }
+  })
+```
+
+### API 和 钩子
+
+```jsx
+define('my-component', _ => (
+  ...
+  ...
+), {
+    use: ['path', 'path.a', 'path[1].b'],
+    useSelf: ['path.c', 'path[1].d'],
+    css: 'h1 { color: red; }',
+    propTypes: {
+
+    },
+    defaultProps: {
+
+    },
+
+    //生命周期
+    install() { }, 
+    installed() { }, 
+    uninstall() { }, 
+    receiveProps() { },
+    beforeUpdate() { }, 
+    updated() { }, 
+    beforeRender() { }, 
+    rendered() { },
+    
+    //自定义方法
+    myMethodA() { },
+    myMethodB() { }
+
+  })
+```
+
 ## Omi 生态
 
 [→ Omi 生态学习路线图](https://github.com/Tencent/omi/tree/master/assets/rm.md)
@@ -54,10 +237,13 @@ render(<my-counter />, 'body', new Store)
 
 | **项目**                         | **描述**                           |
 | ------------------------------- | ----------------------------------- |
-| [omi-docs](https://tencent.github.io/omi/site/docs/cn.html) 和 [例子](https://codepen.io/collection/DrMYgV/) 和 [wcd demos](https://webcomponents.dev/demos/omi)| Omi 官方文档 |
-| [omim![](https://raw.githubusercontent.com/dntzhang/cax/master/asset/hot.png)](https://github.com/Tencent/omi/tree/master/packages/omim)|  Omi 打造的跨框架 Material Design UI 组件库, 任意框架可以使用,([DOCS & REPL](https://tencent.github.io/omi/packages/omim/docs/build/cn.html) && [加入我们](https://github.com/Tencent/omi/tree/master/packages/omim#contribution)!)|
-| [omi-kbone![](https://raw.githubusercontent.com/dntzhang/cax/master/asset/hot.png) ](https://github.com/Tencent/omi/tree/master/packages/omi-kbone)| 使用 omi + [kbone](https://github.com/wechat-miniprogram/kbone) 多端开发(小程序和Web)的贪吃蛇游戏。|
+| [omi-docs](https://tencent.github.io/omi/site/docs/cn.html) 和 [例子](https://codepen.io/collection/DrMYgV/) 和 [webcomponents.dev](https://webcomponents.dev/)| Omi 官方文档 |
+| [omix![](https://dntzhang.github.io/cax/asset/hot.png)](https://github.com/Tencent/omi/tree/master/packages/omix)| 小程序全局状态管理框架，数据触手可及，状态无处遁形 |
+| [omim![](https://dntzhang.github.io/cax/asset/hot.png)](https://github.com/Tencent/omi/tree/master/packages/omim)|  Omi 打造的跨框架 Material Design UI 组件库, 任意框架可以使用,([DOCS & REPL](https://tencent.github.io/omi/packages/omim/docs/build/cn.html) && [加入我们](https://github.com/Tencent/omi/tree/master/packages/omim#contribution)!)|
+| [omi-kbone![](https://dntzhang.github.io/cax/asset/hot.png) ](https://github.com/Tencent/omi/tree/master/packages/omi-kbone)| 使用 omi + [kbone](https://github.com/wechat-miniprogram/kbone) 多端开发(小程序和Web)的贪吃蛇游戏。|
 | [omio](https://github.com/Tencent/omi/tree/master/packages/omio)| 兼容老浏览器的 Omi 版本(支持到 IE8+) |
+| [omis![](https://dntzhang.github.io/cax/asset/hot.png) ](https://github.com/Tencent/omi/tree/master/packages/omis)| Omis + React|
+| [omiv![](https://dntzhang.github.io/cax/asset/hot.png) ](https://github.com/Tencent/omi/tree/master/packages/omiv)| Omiv + Vue|
 | [omi-ssr](https://github.com/Tencent/omi/tree/master/packages/omi-ssr)| 服务端同构渲染解决方案(目前只能用 omio) |
 | [omiu](https://tencent.github.io/omi/packages/omiu/examples/build/zh-cn.html)| 简单 Omi UI|
 | [omi-router ](https://github.com/Tencent/omi/tree/master/packages/omi-router) |Omi 官方路由,超级小的尺寸，只有 1KB 的 js|
@@ -71,17 +257,20 @@ render(<my-counter />, 'body', new Store)
 
 | **Project**                         | **Description**                           |
 | ------------------------------- | ----------------------------------- |
-| [omi-snake![](https://raw.githubusercontent.com/dntzhang/cax/master/asset/hot.png) ](https://github.com/Tencent/omi/tree/master/packages/omi-snake)| omi 写的 MVP 架构的贪吃蛇游戏 |
-| [omi-kbone-snake![](https://raw.githubusercontent.com/dntzhang/cax/master/asset/hot.png) ](https://github.com/Tencent/omi/tree/master/packages/omi-kbone)| omi-kbone 写的 MVP 架构的贪吃蛇小程序 |
-| [react-snake![](https://raw.githubusercontent.com/dntzhang/cax/master/asset/hot.png) ](https://github.com/Tencent/omi/tree/master/packages/react-snake)| react 写的 MVP 架构的贪吃蛇游戏 |
+| [omi-snake![](https://dntzhang.github.io/cax/asset/hot.png) ](https://github.com/Tencent/omi/tree/master/packages/omi-snake)| omi 写的 MVP 架构的贪吃蛇游戏 |
+| [omi-kbone-snake![](https://dntzhang.github.io/cax/asset/hot.png) ](https://github.com/Tencent/omi/tree/master/packages/omi-kbone)| omi-kbone 写的 MVP 架构的贪吃蛇小程序 |
+| [Preact-snake](https://github.com/Tencent/omi/tree/master/packages/preact-css/examples/snake) & [→ Touch the demo](https://tencent.github.io/omi/packages/preact-css/examples/snake/build/)| Preact + [Preact-CSS](https://github.com/Tencent/omi/tree/master/packages/preact-css) + Omis 写的贪吃蛇 |
+| [[P]react-snake ](https://github.com/Tencent/omi/tree/master/packages/react-snake) & [→ Touch the demo](https://tencent.github.io/omi/packages/react-snake/build/index.html)| react/preact 写的 MVP 架构的贪吃蛇游戏 |
+| [vue-snake](https://github.com/Tencent/omi/tree/master/packages/vue-snake) | Vue + Omiv 写的 MVP 架构的贪吃蛇游戏 |
+| [omix-snake![](https://dntzhang.github.io/cax/asset/hot.png)](https://github.com/Tencent/omi/tree/master/packages/omix-snake) | Omix 写的 MVP 架构贪吃蛇  |
 
 #### 小程序生态
 
 | **项目**                         | **描述**                           |
 | ------------------------------- | ----------------------------------- |
-| [react-kbone![](https://raw.githubusercontent.com/dntzhang/cax/master/asset/hot.png) ](https://github.com/Tencent/omi/tree/master/packages/react-kbone)| 直接使用 React 开发小程序或 Web，基于 [kbone](https://github.com/wechat-miniprogram/kbone) |
-| [preact-kbone![](https://raw.githubusercontent.com/dntzhang/cax/master/asset/hot.png) ](https://github.com/Tencent/omi/tree/master/packages/preact-kbone)| 直接使用 Preact 开发小程序或 Web，基于 [kbone](https://github.com/wechat-miniprogram/kbone) |
-| [omix![](https://raw.githubusercontent.com/dntzhang/cax/master/asset/hot.png)](https://github.com/Tencent/omi/tree/master/packages/omix)| 极小却精巧的小程序框架|
+| [omix![](https://dntzhang.github.io/cax/asset/hot.png)](https://github.com/Tencent/omi/tree/master/packages/omix)| 小程序全局状态管理框架，数据触手可及，状态无处遁形 |
+| [react-kbone![](https://dntzhang.github.io/cax/asset/hot.png) ](https://github.com/Tencent/omi/tree/master/packages/react-kbone)| 直接使用 React 开发小程序或 Web，基于 [kbone](https://github.com/wechat-miniprogram/kbone) |
+| [preact-kbone![](https://dntzhang.github.io/cax/asset/hot.png) ](https://github.com/Tencent/omi/tree/master/packages/preact-kbone)| 直接使用 Preact 开发小程序或 Web，基于 [kbone](https://github.com/wechat-miniprogram/kbone) |
 | [omi-cloud](https://github.com/Tencent/omi/tree/master/packages/omi-cloud)| 小程序•云开发|
 | [omip](https://github.com/Tencent/omi/tree/master/packages/omip)| 直接使用 Omi 开发小程序或 H5 SPA|
 | [mps](https://github.com/Tencent/omi/tree/master/packages/mps)| 原生小程序增强框架(JSX + Less 输出 WXML + WXSS)，也支持 QQ 轻应用  |
@@ -95,7 +284,7 @@ render(<my-counter />, 'body', new Store)
 
 | **项目**                         | **描述**                           |
 | ------------------------------- | ----------------------------------- |
-| [omi-piano![](https://raw.githubusercontent.com/dntzhang/cax/master/asset/hot.png)](https://github.com/Wscats/piano) |Omi 钢琴, [开始演奏吧!](https://wscats.github.io/piano/build/)|
+| [omi-piano![](https://dntzhang.github.io/cax/asset/hot.png)](https://github.com/Wscats/piano) |Omi 钢琴, [开始演奏吧!](https://wscats.github.io/piano/build/)|
 | [md2site](https://tencent.github.io/omi/assets/md2site/)| 用 markdown 生成静态网站文档.|
 | [omi-chart](https://github.com/Tencent/omi/tree/master/packages/omi-chart)| 一个 chart-x 标签搞定报表|
 | [omi-30-seconds](https://github.com/Tencent/omi/tree/master/packages/omi-30-seconds)| 30 秒理解一段有用的 Omi 代码片段.|
@@ -111,6 +300,8 @@ render(<my-counter />, 'body', new Store)
 |[omi-i18n](https://github.com/i18next/omi-i18n)| Omi 国际化解决方案 |
 | [omi-page](https://github.com/Tencent/omi/tree/master/packages/omi-page) | 基于 [page.js](https://github.com/visionmedia/page.js) 的 Omi 路由|
 | [omie](https://github.com/Wscats/omi-electron) | Omi.js 和 Electron.js 打造跨平台桌面应用 |
+| [Soo](https://github.com/tonis2/Soo)| 和 Omi 一样的 API，但是更小且没有 JSX, virtual DOM 和 store|
+| [CEE](https://omijs.github.io/cee/out/)| custom-elements-everywhere 评分 |
 
 ### 特性
 
@@ -213,13 +404,10 @@ export default class oButton extends WeElement<ButtonProps> {
 - [Omi 生态](#omi-生态)
 - [必须收藏的资源](#必须收藏的资源)
 - [一个 HTML 完全上手](#一个-html-完全上手)
-- [再花 30 秒完全上手](#再花-30-秒完全上手)
 - [快速入门](#快速入门)
   - [安装](#安装)
   - [项目模板](#项目模板)
   - [Hello Element](#hello-element)
-  - [TodoApp](#todoapp)
-  - [Store](#store)
   - [生命周期](#生命周期)
 - [调试工具](#调试工具)
 - [浏览器兼容](#浏览器兼容)
@@ -233,7 +421,7 @@ export default class oButton extends WeElement<ButtonProps> {
 
 下面这个页面不需要任何构建工具就可以执行
 
-- [→ Online Demo!](https://codepen.io/dntzhang/pen/qzwbVj)
+- [→ Online Demo!](https://codepen.io/omijs/pen/PMZWNb)
 
 ```html
 <!DOCTYPE html>
@@ -246,186 +434,52 @@ export default class oButton extends WeElement<ButtonProps> {
 <body>
   <script src="https://tencent.github.io/omi/packages/omi/dist/omi.js"></script>
   <script>
-    const { define, WeElement, html, render } = Omi
+    const { define, render, html } = Omi
 
-    define('my-counter', class extends WeElement {
-
-      install() {
-        this.count = 1
-        this.sub = this.sub.bind(this)
-        this.add = this.add.bind(this)
-      }
-
-      sub() {
-        this.count--
-        this.update()
-      }
-
-      add() {
-        this.count++
-        this.update()
-      }
-
-      render() {
-        return html`
-          <div>
-            <button onClick=${this.sub}>-</button>
-            <span>${this.count}</span>
-            <button onClick=${this.add}>+</button>
-          </div>
-          `}
-    })
-
-    render(html`<my-counter />`, 'body')
-  </script>
-</body>
-
-</html>
-```
-
-### 使用 store 
-
-```html
-<!DOCTYPE html>
-<html>
-
-<head>
-  <meta charset="UTF-8" />
-  <title>Omi demo without transpiler</title>
-</head>
-
-<body>
-  <script src="https://tencent.github.io/omi/packages/omi/dist/omi.js"></script>
-  <script>
-    const { define, WeElement, html, render } = Omi
-
-    define('my-counter', class extends WeElement {
-      use() {
-        return ['count']
-      }
-
-      install() {
-        this.sub = this.sub.bind(this)
-        this.add = this.add.bind(this)
-      }
-
-      sub() {
-        this.store.data.count--
-      }
-
-      add() {
-        this.store.data.count++
-      }
-
-      render() {
-        return html`
-          <div>
-            <button onClick=${this.sub}>-</button>
-            <span>${this.store.data.count}</span>
-            <button onClick=${this.add}>+</button>
-          </div>
-          `}
-    })
-
-    render(html`<my-counter />`, 'body', {
-      data: {
+    class Store {
+      data = {
         count: 1
       }
-    })
-  </script>
+      sub = () => {
+        this.data.count--
+      }
+      add = () => {
+        this.data.count++
+      }
+    }
 
+    define('my-counter', _ => html`
+      <div>
+        <button onClick=${_.store.sub}>-</button>
+        <span>${_.store.data.count}</span>
+        <button onClick=${_.store.add}>+</button>
+      </div>
+    `, {
+      use: ['count'],
+      //or using useSelf, useSelf will update self only, exclude children components
+      //useSelf: ['count'], 
+      css: `span { color: red; }`,
+      installed() {
+        console.log('installed')
+      }
+    })
+
+    render(html`<my-counter />`, 'body', new Store)
+  </script>
 </body>
 
 </html>
 ```
 
-通过上面脚本的执行，你已经定义好了一个自定义标签，可以不使用 render 方法，直接使用 `like-button` 标签：
+通过上面脚本的执行，你已经定义好了一个自定义标签，可以不使用 render 方法，直接使用 `<my-counter></my-counter>` 标签：
 
 ```jsx
 <body>
-    <like-button></like-button>
+  <my-counter></my-counter>
 </body>
 ```
 
-[→ store demo](https://codepen.io/dntzhang/pen/EBJyaG)
 
-## 再花 30 秒完全上手
-
-你也可以使用现代化的 JS 语法，快速构建 Omi 项目:
-
-```js
-import { tag, WeElement, render } from 'omi'
-
-@tag('my-counter')
-class MyCounter extends WeElement {
-  data = {
-    count: 1
-  }
-
-  static css = `
-    span{
-        color: red;
-    }`
-
-  sub = () => {
-    this.data.count--
-    this.update()
-  }
-
-  add = () => {
-    this.data.count++
-    this.update()
-  }
-
-  render() {
-    return (
-      <div>
-        <button onClick={this.sub}>-</button>
-        <span>{this.data.count}</span>
-        <button onClick={this.add}>+</button>
-      </div>
-    )
-  }
-}
-
-render(<my-counter />, 'body')
-```
-
-[→ counter demo](https://codepen.io/dntzhang/pen/wLZGPK)
-
-<!-- 
-你也可以定义成纯函数的形式:
-
-```js
-import { define, render } from 'omi'
-
-define('my-counter', function() {
-  const [count, setCount] = this.use({
-    data: 0,
-    effect: function() {
-      document.title = `The num is ${this.data}.`
-    }
-  })
-
-  this.useCss(`button{ color: red; }`)
-
-  return (
-    <div>
-      <button onClick={() => setCount(count - 1)}>-</button>
-      <span>{count}</span>
-      <button onClick={() => setCount(count + 1)}>+</button>
-    </div>
-  )
-})
-
-render(<my-counter />, 'body')
-```
-
-如果你不需要 effect 方法, 可以直接使用 `useData`:
-
-```js
-const [count, setCount] = this.useData(0)
-​``` -->
 
 ## 快速入门
 
@@ -525,13 +579,12 @@ $ npm run build       # 编译发布
 |基础模板(v3.3.0+)|`omi init my-app`| 基础模板，支持 omi 和 omio(IE8+)|
 |小程序模板(v3.3.5+)|`omi init-p my-app`| Omi 开发小程序 |
 |基础模板(v3.3.9+)|`omi init-o my-app`| 支持 IE8 的基础模板，只是 build 的时候支持 IE8，开发调试请用 IE9|
+|Kbone Template|`omi init-kbone my-app`  | 使用 omi 开发小程序或者 Web|
 |支持预渲染快照骨架的模板|`omi init-snap my-app`| 基础模板，支持 omi 和 omio(IE8+)，内置预渲染|
 |TypeScript Template(omi-cli v3.3.0+)|`omi init-ts my-app`|使用 TypeScript 的模板|
 |Mobile Template|`omi init-weui my-app`| 使用了 weui 和 omi-router 的移动 web app 模板|
-|omi-mp Template(omi-cli v3.0.13+)|`omi init-mp my-app`  |小程序开发 Web 的模板|
-<!-- |[SPA Template](https://tencent.github.io/omi/packages/omi-router/examples/spa/build/)(omi-cli v3.0.10+)|`omi init-spa my-app`|使用  omi-router 单页应用的模板| -->
 
-基础模板(`omi init my-app`)是基于单页的 create-react-app 改造成多页的，有配置方面的问题可以查看 [create-react-app 用户指南](https://facebook.github.io/create-react-app/docs/getting-started)。
+
 
 ### Hello Element
 
@@ -636,7 +689,8 @@ npm install --save-dev @babel/preset-react
     [
       "@babel/preset-react",
       {
-        "pragma": "Omi.h"
+        "pragma": "Omi.h",
+        "pragmaFrag": "Omi.h.f"
       }
     ]
   ]
@@ -670,7 +724,7 @@ define('my-app', class extends WeElement {
 
 你也可以忘掉这一对繁琐的配置直接使用 omi-cli，不需要你配置任何东西。
 
-### TodoApp
+<!-- ### TodoApp
 
 下面列举一个相对完整的 TodoApp 的例子:
 
@@ -733,50 +787,7 @@ define('todo-app', class extends WeElement {
 })
 
 render(<todo-app />, 'body')
-```
-
-### Store
-
-Omi 的 Store 体系： 从根组件注入，在所有子组件可以共享。使用起来非常简单：
-
-```js
-import { define, render, WeElement } from 'omi'
-
-define('my-hello', class extends WeElement {
-  render() {
-    //任意子组件的任意方法都可以使用 this.store 访问注入的 store
-    return <div>{this.store.name}</div>
-  }
-})
-
-define('my-app', class extends WeElement {
-  handleClick = () => {
-     //任意子组件的任意方法都可以使用 this.store 访问注入的 store
-    this.store.reverse()
-    this.update()
-  }
-
-  render() {
-    return (
-      <div>
-        <my-hello />
-        <button onclick={this.handleClick}>reverse</button>
-      </div>
-    )
-  }
-})
-
-const store = {
-  name: 'abc',
-  reverse: function() {
-    this.name = this.name.split("").reverse().join("")
-  }
-}
-//通过第三个参数注入
-render(<my-app />, document.body, store)
-```
-
-与全局变量不同的是， 当有多个根节点的时候就可以注入多个 store，而全局变量只有一个。
+``` -->
 
 <!-- 
 使用 Store 体系可以告别 update 方法，基于 Proxy 的全自动属性追踪和更新机制。强大的 Store 体系是高性能的原因，除了靠 props 决定组件状态的组件，其余组件所有 data 都挂载在 store 上,
@@ -968,6 +979,8 @@ npm run test
        <td><a target="_blank" href="https://github.com/liulinboyi"><img width="60px" src="https://avatars2.githubusercontent.com/u/41336612?s=60&amp;v=4"></a></td>
         <td><a target="_blank" href="https://github.com/hulei"><img width="60px" src="https://avatars2.githubusercontent.com/u/6905072?s=60&amp;v=4"></a></td> <td><a target="_blank" href="https://github.com/mtonhuang"><img width="60px" src="https://avatars2.githubusercontent.com/u/30364922?s=60&amp;v=4"></a></td><td><a target="_blank" href="https://github.com/Juliiii"><img width="60px" src="https://avatars2.githubusercontent.com/u/23744602?s=60&amp;v=4"></a></td></tr><tr><td><a target="_blank" href="https://github.com/mingkang1993"><img width="60px" src="https://avatars2.githubusercontent.com/u/9126292?s=60&amp;v=4"></a></td><td><a target="_blank" href="https://github.com/liufushihai"><img width="60px" src="https://avatars2.githubusercontent.com/u/28208916?s=60&amp;v=4"></a></td><td><a target="_blank" href="https://github.com/supermp"><img width="60px" src="https://avatars2.githubusercontent.com/u/892475?s=60&amp;v=4"></a></td><td><a target="_blank" href="https://github.com/LeachZhou"><img width="60px" src="https://avatars2.githubusercontent.com/u/18715564?s=60&amp;v=4"></a></td><td><a target="_blank" href="https://github.com/yiliang114"><img width="60px" src="https://avatars2.githubusercontent.com/u/11473889?s=60&amp;v=4"></a></td></tr></tbody></table>
 
+这里是 [todo list](./todo.md), 欢迎一起贡献。
+
 ## 核心维护者
 
 - [@Wscats](https://github.com/Wscats)
@@ -981,7 +994,7 @@ npm run test
 ## 感谢
 
 * [preact](https://github.com/developit/preact)
-* [htm](https://github.com/developit/htm) 
+* [obaa](https://github.com/Tencent/omi/tree/master/packages/obaa) 
 * [create-react-app](https://github.com/facebook/create-react-app)
 * [JSX](https://github.com/facebook/jsx)
 * [JSONPatcherProxy](https://github.com/Palindrom/JSONPatcherProxy)

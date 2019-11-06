@@ -25,5 +25,6 @@ export default {
 	store: null,
 	// 根据环境返回 window 或者 global
 	root: getGlobal(),
-	mapping: {}
+	mapping: {},
+	isMultiStore: false
 }

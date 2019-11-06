@@ -1,8 +1,8 @@
-﻿English | [简体中文](./README.CN.md) | [한국어](./README.KR.md)
+﻿English | [简体中文](./README.CN.md) 
 
 # omi-router
 
-omi-router is a router plugin of [Omi](http://omijs.org), and it is lightweight, easy and powerful to use. It is a solution to build Omi's SPA(Single Page Application).
+omi-router is a router plugin of [Omi](https://tencent.github.io/omi/), and it is lightweight, easy and powerful to use. It is a solution to build Omi's SPA(Single Page Application).
 
 [→ DEMO](https://tencent.github.io/omi/packages/omi-router/examples/spa/build/)
 
@@ -38,7 +38,6 @@ import './user'
 import './user-list'
 
 define('my-app', class extends WeElement {
-  static observe = true
 
   data = { tag: 'my-home' }
 
@@ -46,20 +45,24 @@ define('my-app', class extends WeElement {
 
     route('/', () => {
       this.data.tag = 'my-home'
+      this.update()
     })
 
     route('/about', (evt) => {
       console.log(evt.query)
       this.data.tag = 'my-about'
+      this.update()
     })
 
     route('/user-list', () => {
       this.data.tag = 'user-list'
+      this.update()
     })
 
     route('/user/:name/category/:category', (evt) => {
       this.data.tag = 'my-user'
       this.data.params = evt.params
+      this.update()
     })
 
     route('*', function () {

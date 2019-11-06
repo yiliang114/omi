@@ -8,17 +8,25 @@ const licensePlugin = license({
 	banner:
 		" omis v" +
 		pkg.version +
-		"  http://omijs.org\r\nOmi === Preact + Scoped CSS + Store System + Native Support in 3kb javascript.\r\nBy dntzhang https://github.com/dntzhang \r\n Github: https://github.com/Tencent/omis\r\n MIT Licensed."
+		"  https://tencent.github.io/omi/\r\n 1kb store system for React/Preact apps.\r\nBy dntzhang https://github.com/dntzhang \r\n Github: https://github.com/Tencent/omi\r\n MIT Licensed."
 });
 
 export default {
+	external: [
+		'react',
+		'vue',
+		'vuex'
+  ],
 	input: "src/omis.js",
 	output: {
 		format: "iife",
 		file: "dist/omis.dev.js",
 		name: "omis",
 		sourcemap: true,
-		strict: true
+		strict: true,
+		globals: {
+      'react': 'React'
+    },
 	},
 	plugins: [
 		memory({

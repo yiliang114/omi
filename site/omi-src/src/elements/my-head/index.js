@@ -4,10 +4,10 @@ import logo from './omi-logo2019.svg'
 define('my-head', class extends WeElement {
   static css = require('./_index.css')
 
-  static use = [
+  use = [
     'position'
   ]
-  
+
   toggleMenus = evt => {
     this.store.toogleSidebar()
     evt.stopPropagation()
@@ -24,7 +24,7 @@ define('my-head', class extends WeElement {
           <img src={require('./menu.png')} alt="" />
         </div>
 
-        <a href="http://omijs.org">
+        <a href="https://tencent.github.io/omi/">
           <img class="logo" src={logo} />
         </a>
         <ul class="menu">

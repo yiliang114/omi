@@ -1,7 +1,7 @@
 import { ATTR_KEY } from '../constants'
 import { isSameNodeType, isNamedNode } from './index'
 import { createNode, setAccessor } from '../dom/index'
-import { camelCase, isArray } from '../util'
+import { camelCase, isArray, Fragment } from '../util'
 import { removeNode } from '../dom/index'
 import options from '../options'
 
@@ -26,26 +26,23 @@ let hydrating = false
 export function diff(dom, vnode, parent, component, updateSelf) {
 	// diffLevel having been 0 here indicates initial entry into the diff (not a subdiff)
 	let ret
-	// 根节点的时候执行逻辑
 	if (!diffLevel++) {
-		// TODO:
-		// diffLevel = 1
 		// when first starting the diff, check if we're diffing an SVG or within an SVG
-		// 检查是否是 svg 标签
 		isSvgMode = parent != null && parent.ownerSVGElement !== undefined
 
-		// hydration is indicated by the existing element to be diffed not having a prop cache
+		// hydration is indicated bsy the existing element to be diffed not having a prop cache
 		hydrating = dom != null && !(ATTR_KEY in dom)
 	}
-	// 渲染子节点。
-	// vnode 是 array 的情况是对应渲染的组件有多个节点
+	if (vnode.nodeName === Fragment) {
+		vnode = vnode.children
+	}
 	if (isArray(vnode)) {
 		if (parent) {
 			const styles = parent.querySelectorAll('style')
 			styles.forEach(s => {
 				parent.removeChild(s)
 			})
-			innerDiffNode(parent, vnode, null, null, null, component)
+			innerDiffNode(parent, vnode, hydrating, component, updateSelf)
 
 			for (let i = styles.length - 1;i >= 0;i--) {
 				parent.firstChild ? parent.insertBefore(styles[i], parent.firstChild) : parent.appendChild(style[i])
@@ -67,14 +64,9 @@ export function diff(dom, vnode, parent, component, updateSelf) {
 				}
 			})
 		} else {
-			// 根组件渲染的时候走这里。。。dom = null, component => false, updateSelf => undefined
-			// 最后返回的结果基本上是经过比较，复制了新的属性的真实节点了
 			ret = idiff(dom, vnode, component, updateSelf)
 		}
 		// append the element if its a new parent
-		// 如果是一个新的父组件，就添加到节点上去. 如果是根虚拟节点渲染的话，会将经过加工的 根虚拟节点添加到 render 第二个参数指定的 dom 节点中
-		// appendChild 执行完成之后， ret.appendChild === parent
-		// 也就是说这里的逻辑是，父节点首先会被挂载，其次它的子（虚拟）节点将属性一个一个更新到真实节点上去
 		if (parent && ret.parentNode !== parent) parent.appendChild(ret)
 	}
 

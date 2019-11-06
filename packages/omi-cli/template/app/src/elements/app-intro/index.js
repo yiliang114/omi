@@ -12,11 +12,12 @@ define('app-intro', class extends WeElement {
     )
   }
 
-  render(props, data) {
-    return (
+  render() {
+    return <>
       <p class="app-intro">
         To get started, edit <code>src/elements/*/*.*</code> and save to reload.
       </p>
-    )
+      <a href="https://tencent.github.io/omi/">omijs.org</a>
+    </>
   }
 })

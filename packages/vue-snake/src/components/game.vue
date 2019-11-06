@@ -1,33 +1,28 @@
 <script>
-export default {
-  props: {
-    map: Array
-  },
-  mounted() {
-    //https://vuejs.org/v2/guide/list.html#Caveats
-    setInterval(() => {
-      this.$forceUpdate();
-    }, 1000);
-  },
+import { $ } from 'omiv'
+
+export default $({
+  use: ['map'],
   render(h) {
+    const { map } = this.$store.data
     return (
       <div class="game">
-        {this.map.map(row => {
+        {map.map(row => {
           return (
             <p>
               {row.map(col => {
                 if (col) {
-                  return <b class="s"></b>;
+                  return <b class="s"></b>
                 }
-                return <b></b>;
+                return <b></b>
               })}
             </p>
-          );
+          )
         })}
       </div>
-    );
+    )
   }
-};
+})
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
@@ -67,7 +62,7 @@ export default {
 }
 
 .game b:after {
-  content: "";
+  content: '';
   display: block;
   width: 24px;
   height: 24px;

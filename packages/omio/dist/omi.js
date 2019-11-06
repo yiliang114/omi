@@ -50,7 +50,7 @@
     function isArray(obj) {
         return '[object Array]' === Object.prototype.toString.call(obj);
     }
-    function getUse(data, paths) {
+    function getUse(data, paths, out, name) {
         var obj = [];
         paths.forEach(function(path, index) {
             var isPath = 'string' == typeof path;
@@ -73,6 +73,7 @@
                 obj[key] = obj[index];
             }
         });
+        out && (out[name] = obj);
         return obj;
     }
     function getTargetByPath(origin, path) {
@@ -80,6 +81,28 @@
         var current = origin;
         for (var i = 0, len = arr.length; i < len; i++) current = current[arr[i]];
         return current;
+    }
+    function getPath(obj, out, name) {
+        var result = {};
+        obj.forEach(function(item) {
+            if ('string' == typeof item) result[item] = !0; else {
+                var tempPath = item[Object.keys(item)[0]];
+                if ('string' == typeof tempPath) result[tempPath] = !0; else if ('string' == typeof tempPath[0]) result[tempPath[0]] = !0; else tempPath[0].forEach(function(path) {
+                    return result[path] = !0;
+                });
+            }
+        });
+        out && (out[name] = result);
+        return result;
+    }
+    function removeItem(item, arr) {
+        for (var i = 0, len = arr.length; i < len; i++) if (arr[i] === item) {
+            arr.splice(i, 1);
+            break;
+        }
+    }
+    function Fragment(props) {
+        return props.children;
     }
     function cloneElement(vnode, props) {
         return h(vnode.nodeName, extend(extend({}, vnode.attributes), props), arguments.length > 2 ? [].slice.call(arguments, 2) : vnode.children);
@@ -178,7 +201,8 @@
             if (value) node.innerHTML = value.__html || '';
         } else if ('o' == name[0] && 'n' == name[1]) {
             var useCapture = name !== (name = name.replace(/Capture$/, ''));
-            name = name.toLowerCase().substring(2);
+            var nameLower = name.toLowerCase();
+            name = (nameLower in node ? nameLower : name).slice(2);
             if (value) {
                 if (!old) {
                     node.addEventListener(name, eventProxy, useCapture);
@@ -303,7 +327,7 @@
             if (c.constructor.css || c.css) addStyleToHead(c.constructor.css ? c.constructor.css : 'function' == typeof c.css ? c.css() : c.css, '_s' + getCtorName(c.constructor));
         }
     }
-    function diff(dom, vnode, context, mountAll, parent, componentRoot, updateSelf) {
+    function diff(dom, vnode, store, mountAll, parent, componentRoot, updateSelf) {
         if (!diffLevel++) {
             isSvgMode = null != parent && void 0 !== parent.ownerSVGElement;
             hydrating = null != dom && !('__omiattr_' in dom);
@@ -312,8 +336,8 @@
         if (isArray(vnode)) vnode = {
             nodeName: 'span',
             children: vnode
-        };
-        ret = idiff(dom, vnode, context, mountAll, componentRoot, updateSelf);
+        }; else if (vnode && vnode.nodeName === Fragment) vnode.nodeName = 'span';
+        ret = idiff(dom, vnode, store, mountAll, componentRoot, updateSelf);
         if (parent && ret.parentNode !== parent) parent.appendChild(ret);
         if (!--diffLevel) {
             hydrating = !1;
@@ -321,15 +345,15 @@
         }
         return ret;
     }
-    function idiff(dom, vnode, context, mountAll, componentRoot, updateSelf) {
+    function idiff(dom, vnode, store, mountAll, componentRoot, updateSelf) {
         var out = dom, prevSvgMode = isSvgMode;
         if (null == vnode || 'boolean' == typeof vnode) vnode = '';
         var vnodeName = vnode.nodeName;
         if (options.mapping[vnodeName]) {
             vnode.nodeName = options.mapping[vnodeName];
-            return buildComponentFromVNode(dom, vnode, context, mountAll, updateSelf);
+            return buildComponentFromVNode(dom, vnode, store, mountAll, updateSelf);
         }
-        if ('function' == typeof vnodeName) return buildComponentFromVNode(dom, vnode, context, mountAll, updateSelf);
+        if ('function' == typeof vnodeName) return buildComponentFromVNode(dom, vnode, store, mountAll, updateSelf);
         if ('string' == typeof vnode || 'number' == typeof vnode) {
             if (dom && void 0 !== dom.splitText && dom.parentNode && (!dom._component || componentRoot)) {
                 if (dom.nodeValue != vnode) dom.nodeValue = vnode;
@@ -362,12 +386,12 @@
         }
         if (!hydrating && vchildren && 1 === vchildren.length && 'string' == typeof vchildren[0] && null != fc && void 0 !== fc.splitText && null == fc.nextSibling) {
             if (fc.nodeValue != vchildren[0]) fc.nodeValue = vchildren[0];
-        } else if (vchildren && vchildren.length || null != fc) innerDiffNode(out, vchildren, context, mountAll, hydrating || null != props.dangerouslySetInnerHTML, updateSelf);
+        } else if (vchildren && vchildren.length || null != fc) innerDiffNode(out, vchildren, store, mountAll, hydrating || null != props.dangerouslySetInnerHTML, updateSelf);
         diffAttributes(out, vnode.attributes, props);
         isSvgMode = prevSvgMode;
         return out;
     }
-    function innerDiffNode(dom, vchildren, context, mountAll, isHydrating, updateSelf) {
+    function innerDiffNode(dom, vchildren, store, mountAll, isHydrating, updateSelf) {
         var j, c, f, vchild, child, originalChildren = dom.childNodes, children = [], keyed = {}, keyedLen = 0, min = 0, len = originalChildren.length, childrenLen = 0, vlen = vchildren ? vchildren.length : 0;
         if (0 !== len) for (var i = 0; i < len; i++) {
             var _child = originalChildren[i], props = _child.__omiattr_, key = vlen && props ? _child._component ? _child._component.__k : props.key : null;
@@ -393,7 +417,7 @@
                 if (j === min) min++;
                 break;
             }
-            child = idiff(child, vchild, context, mountAll, null, updateSelf);
+            child = idiff(child, vchild, store, mountAll, null, updateSelf);
             f = originalChildren[i];
             if (child && child !== dom && child !== f) if (null == f) dom.appendChild(child); else if (child === f.nextSibling) removeNode(f); else dom.insertBefore(child, f);
         }
@@ -421,173 +445,61 @@
         for (name in old) if ((!attrs || null == attrs[name]) && null != old[name]) setAccessor(dom, name, old[name], old[name] = void 0, isSvgMode);
         for (name in attrs) if (!('children' === name || 'innerHTML' === name || name in old && attrs[name] === ('value' === name || 'checked' === name ? dom[name] : old[name]))) setAccessor(dom, name, old[name], old[name] = attrs[name], isSvgMode);
     }
-    function _classCallCheck(instance, Constructor) {
-        if (!(instance instanceof Constructor)) throw new TypeError("Cannot call a class as a function");
-    }
-    function _possibleConstructorReturn(self, call) {
-        if (!self) throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
-        return call && ("object" == typeof call || "function" == typeof call) ? call : self;
-    }
-    function _inherits(subClass, superClass) {
-        if ("function" != typeof superClass && null !== superClass) throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
-        subClass.prototype = Object.create(superClass && superClass.prototype, {
-            constructor: {
-                value: subClass,
-                enumerable: !1,
-                writable: !0,
-                configurable: !0
-            }
-        });
-        if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
-    }
-    function define(name, ctor) {
-        if ('WeElement' === ctor.is) {
-            options.mapping[name] = ctor;
-            if (ctor.use) ctor.updatePath = getPath(ctor.use);
-        } else {
-            var depPaths;
-            var config = {};
-            var len = arguments.length;
-            if (3 === len) if ('function' == typeof arguments[1]) {
-                ctor = arguments[1];
-                config = arguments[2];
-            } else {
-                depPaths = arguments[1];
-                ctor = arguments[2];
-            } else if (4 === len) {
-                depPaths = arguments[1];
-                ctor = arguments[2];
-                config = arguments[3];
-            }
-            if ('string' == typeof config) config = {
-                css: config
-            };
-            var Comp = function(_Component) {
-                function Comp() {
-                    _classCallCheck(this, Comp);
-                    return _possibleConstructorReturn(this, _Component.apply(this, arguments));
-                }
-                _inherits(Comp, _Component);
-                Comp.prototype.render = function() {
-                    return ctor.call(this, this);
-                };
-                Comp.prototype.install = function() {
-                    config.install && config.install.apply(this, arguments);
-                };
-                Comp.prototype.installed = function() {
-                    config.installed && config.installed.apply(this, arguments);
-                };
-                Comp.prototype.uninstall = function() {
-                    config.uninstall && config.uninstall.apply(this, arguments);
-                };
-                Comp.prototype.beforeUpdate = function() {
-                    config.beforeUpdate && config.beforeUpdate.apply(this, arguments);
-                };
-                Comp.prototype.updated = function() {
-                    config.updated && config.updated.apply(this, arguments);
-                };
-                Comp.prototype.beforeRender = function() {
-                    config.beforeRender && config.beforeRender.apply(this, arguments);
-                };
-                Comp.prototype.rendered = function() {
-                    config.rendered && config.rendered.apply(this, arguments);
-                };
-                Comp.prototype.receiveProps = function() {
-                    if (config.receiveProps) return config.receiveProps.apply(this, arguments);
-                };
-                return Comp;
-            }(Component);
-            Comp.use = depPaths;
-            Comp.css = config.css;
-            Comp.propTypes = config.propTypes;
-            Comp.defaultProps = config.defaultProps;
-            if (config.use) if ('function' == typeof config.use) Comp.prototype.use = function() {
-                return config.use.apply(this, arguments);
-            }; else Comp.prototype.use = function() {
-                return config.use;
-            };
-            if (config.useSelf) if ('function' == typeof config.useSelf) Comp.prototype.useSelf = function() {
-                return config.useSelf.apply(this, arguments);
-            }; else Comp.prototype.useSelf = function() {
-                return config.useSelf;
-            };
-            if (Comp.use) Comp.updatePath = getPath(Comp.use);
-            options.mapping[name] = Comp;
-        }
-    }
-    function getPath(obj) {
-        if ('[object Array]' === Object.prototype.toString.call(obj)) {
-            var result = {};
-            obj.forEach(function(item) {
-                if ('string' == typeof item) result[item] = !0; else {
-                    var tempPath = item[Object.keys(item)[0]];
-                    if ('string' == typeof tempPath) result[tempPath] = !0; else if ('string' == typeof tempPath[0]) result[tempPath[0]] = !0; else tempPath[0].forEach(function(path) {
-                        return result[path] = !0;
-                    });
-                }
-            });
-            return result;
-        } else return getUpdatePath(obj);
-    }
-    function getUpdatePath(data) {
-        var result = {};
-        dataToPath(data, result);
-        return result;
-    }
-    function dataToPath(data, result) {
-        Object.keys(data).forEach(function(key) {
-            result[key] = !0;
-            var type = Object.prototype.toString.call(data[key]);
-            if ('[object Object]' === type) _objToPath(data[key], key, result); else if ('[object Array]' === type) _arrayToPath(data[key], key, result);
-        });
-    }
-    function _objToPath(data, path, result) {
-        Object.keys(data).forEach(function(key) {
-            result[path + '.' + key] = !0;
-            delete result[path];
-            var type = Object.prototype.toString.call(data[key]);
-            if ('[object Object]' === type) _objToPath(data[key], path + '.' + key, result); else if ('[object Array]' === type) _arrayToPath(data[key], path + '.' + key, result);
-        });
-    }
-    function _arrayToPath(data, path, result) {
-        data.forEach(function(item, index) {
-            result[path + '[' + index + ']'] = !0;
-            delete result[path];
-            var type = Object.prototype.toString.call(item);
-            if ('[object Object]' === type) _objToPath(item, path + '[' + index + ']', result); else if ('[object Array]' === type) _arrayToPath(item, path + '[' + index + ']', result);
-        });
-    }
     function collectComponent(component) {
         var name = component.constructor.name;
         (components[name] || (components[name] = [])).push(component);
     }
-    function createComponent(Ctor, props, context, vnode) {
+    function createComponent(Ctor, props, store, vnode) {
         var inst, list = components[Ctor.name];
         if (Ctor.prototype && Ctor.prototype.render) {
-            inst = new Ctor(props, context);
-            Component.call(inst, props, context);
+            inst = new Ctor(props, store);
+            Component.call(inst, props, store);
         } else {
-            inst = new Component(props, context);
+            inst = new Component(props, store);
             inst.constructor = Ctor;
             inst.render = doRender;
         }
         vnode && (inst.scopedCssAttr = vnode.css);
-        if (inst.store && inst.store.data) {
-            if (inst.constructor.use) {
-                inst.using = getUse(inst.store.data, inst.constructor.use);
-                inst.store.instances.push(inst);
-            } else if (inst.use) {
+        if (inst.store) {
+            if (inst.use) {
                 var use = 'function' == typeof inst.use ? inst.use() : inst.use;
-                inst.H = getPath(use);
-                inst.using = getUse(inst.store.data, use);
-                inst.store.instances.push(inst);
+                if (options.isMultiStore) {
+                    var _updatePath = {};
+                    var using = {};
+                    for (var storeName in use) {
+                        _updatePath[storeName] = {};
+                        using[storeName] = {};
+                        getPath(use[storeName], _updatePath, storeName);
+                        getUse(inst.store[storeName].data, use[storeName], using, storeName);
+                        inst.store[storeName].instances.push(inst);
+                    }
+                    inst.using = using;
+                    inst.H = _updatePath;
+                } else {
+                    inst.H = getPath(use);
+                    inst.using = getUse(inst.store.data, use);
+                    inst.store.instances.push(inst);
+                }
             }
             if (inst.useSelf) {
                 var _use = 'function' == typeof inst.useSelf ? inst.useSelf() : inst.useSelf;
-                inst.I = getPath(_use);
-                inst.usingSelf = getUse(inst.store.data, _use);
-                inst.store.updateSelfInstances.push(inst);
+                if (options.isMultiStore) {
+                    var _updatePath2 = {};
+                    var _using = {};
+                    for (var _storeName in _use) {
+                        getPath(_use[_storeName], _updatePath2, _storeName);
+                        getUse(inst.store[_storeName].data, _use[_storeName], _using, _storeName);
+                        inst.store[_storeName].updateSelfInstances.push(inst);
+                    }
+                    inst.usingSelf = _using;
+                    inst.I = _updatePath2;
+                } else {
+                    inst.I = getPath(_use);
+                    inst.usingSelf = getUse(inst.store.data, _use);
+                    inst.store.updateSelfInstances.push(inst);
+                }
             }
+            if (inst.compute) for (var key in inst.compute) inst.computed[key] = inst.compute[key].call(options.isMultiStore ? inst.store : inst.store.data);
         }
         if (list) for (var i = list.length; i--; ) if (list[i].constructor === Ctor) {
             inst.__b = list[i].__b;
@@ -596,10 +508,10 @@
         }
         return inst;
     }
-    function doRender(props, context) {
-        return this.constructor(props, context);
+    function doRender(props, store) {
+        return this.constructor(props, store);
     }
-    function setComponentProps(component, props, opts, context, mountAll) {
+    function setComponentProps(component, props, opts, store, mountAll) {
         if (!component.__x) {
             component.__x = !0;
             if (component.__r = props.ref) delete props.ref;
@@ -607,10 +519,6 @@
             if (!component.base || mountAll) {
                 if (component.beforeInstall) component.beforeInstall();
                 if (component.install) component.install();
-            }
-            if (context && context !== component.context) {
-                if (!component.__c) component.__c = component.context;
-                component.context = context;
             }
             if (!component.__p) component.__p = component.props;
             component.props = props;
@@ -621,36 +529,33 @@
     }
     function renderComponent(component, opts, mountAll, isChild, updateSelf) {
         if (!component.__x) {
-            var rendered, inst, cbase, props = component.props, context = component.context, previousProps = component.__p || props, previousContext = component.__c || context, isUpdate = component.base, nextBase = component.__b, initialBase = isUpdate || nextBase, initialChildComponent = component._component, skip = !1;
+            var rendered, inst, cbase, props = component.props, store = component.store, previousProps = component.__p || props, isUpdate = component.base, nextBase = component.__b, initialBase = isUpdate || nextBase, initialChildComponent = component._component, skip = !1;
             if (isUpdate) {
                 component.props = previousProps;
-                component.context = previousContext;
                 var receiveResult = !0;
                 if (component.receiveProps) receiveResult = component.receiveProps(props, previousProps);
                 if (!1 !== receiveResult) {
                     skip = !1;
-                    if (component.beforeUpdate) component.beforeUpdate(props, context);
+                    if (component.beforeUpdate) component.beforeUpdate(props, store);
                 } else skip = !0;
                 component.props = props;
-                component.context = context;
             }
-            component.__p = component.__c = component.__b = null;
+            component.__p = component.__b = null;
             if (!skip) {
                 component.beforeRender && component.beforeRender();
-                rendered = component.render(props, context);
+                rendered = component.render(props, store);
                 if (component.constructor.css || component.css) addScopedAttrStatic(rendered, '_s' + getCtorName(component.constructor));
                 scopeHost(rendered, component.scopedCssAttr);
-                if (component.getChildContext) context = extend(extend({}, context), component.getChildContext());
                 var toUnmount, base, childComponent = rendered && rendered.nodeName, ctor = options.mapping[childComponent];
                 if (ctor) {
                     var childProps = getNodeProps(rendered);
                     inst = initialChildComponent;
-                    if (inst && inst.constructor === ctor && childProps.key == inst.__k) setComponentProps(inst, childProps, 1, context, !1); else {
+                    if (inst && inst.constructor === ctor && childProps.key == inst.__k) setComponentProps(inst, childProps, 1, store, !1); else {
                         toUnmount = inst;
-                        component._component = inst = createComponent(ctor, childProps, context);
+                        component._component = inst = createComponent(ctor, childProps, store);
                         inst.__b = inst.__b || nextBase;
                         inst.__u = component;
-                        setComponentProps(inst, childProps, 0, context, !1);
+                        setComponentProps(inst, childProps, 0, store, !1);
                         renderComponent(inst, 1, mountAll, !0);
                     }
                     base = inst.base;
@@ -660,7 +565,7 @@
                     if (toUnmount) cbase = component._component = null;
                     if (initialBase || 1 === opts) {
                         if (cbase) cbase._component = null;
-                        base = diff(cbase, rendered, context, mountAll || !isUpdate, initialBase && initialBase.parentNode, !0, updateSelf);
+                        base = diff(cbase, rendered, store, mountAll || !isUpdate, initialBase && initialBase.parentNode, !0, updateSelf);
                     }
                 }
                 if (initialBase && base !== initialBase && inst !== initialChildComponent) {
@@ -683,31 +588,31 @@
                 }
             }
             if (!isUpdate || mountAll) mounts.unshift(component); else if (!skip) {
-                if (component.afterUpdate) component.afterUpdate(previousProps, previousContext);
-                if (component.updated) component.updated(previousProps, previousContext);
+                if (component.afterUpdate) component.afterUpdate(previousProps, store);
+                if (component.updated) component.updated(previousProps, store);
                 if (options.afterUpdate) options.afterUpdate(component);
             }
             if (null != component.__h) while (component.__h.length) component.__h.pop().call(component);
             if (!diffLevel && !isChild) flushMounts();
         }
     }
-    function buildComponentFromVNode(dom, vnode, context, mountAll, updateSelf) {
+    function buildComponentFromVNode(dom, vnode, store, mountAll, updateSelf) {
         var c = dom && dom._component, originalComponent = c, oldDom = dom, isDirectOwner = c && dom._componentConstructor === vnode.nodeName, isOwner = isDirectOwner, props = getNodeProps(vnode);
         while (c && !isOwner && (c = c.__u)) isOwner = c.constructor === vnode.nodeName;
         if (c && isOwner && (!mountAll || c._component)) {
-            if (!updateSelf) setComponentProps(c, props, 3, context, mountAll);
+            if (!updateSelf) setComponentProps(c, props, 3, store, mountAll);
             dom = c.base;
         } else {
             if (originalComponent && !isDirectOwner) {
                 unmountComponent(originalComponent);
                 dom = oldDom = null;
             }
-            c = createComponent(vnode.nodeName, props, context, vnode);
+            c = createComponent(vnode.nodeName, props, store, vnode);
             if (dom && !c.__b) {
                 c.__b = dom;
                 oldDom = null;
             }
-            setComponentProps(c, props, 1, context, mountAll);
+            setComponentProps(c, props, 1, store, mountAll);
             dom = c.base;
             if (oldDom && dom !== oldDom) {
                 oldDom._component = null;
@@ -721,16 +626,13 @@
         var base = component.base;
         component.__x = !0;
         if (component.uninstall) component.uninstall();
-        if (component.store && component.store.instances) {
-            var i, len;
-            for (i = 0, len = component.store.instances.length; i < len; i++) if (component.store.instances[i] === component) {
-                component.store.instances.splice(i, 1);
-                break;
-            }
-            for (i = 0, len = component.store.updateSelfInstances.length; i < len; i++) if (component.store.updateSelfInstances[i] === component) {
-                component.store.updateSelfInstances.splice(i, 1);
-                break;
-            }
+        if (component.store) if (options.isMultiStore) for (var key in component.store) {
+            var current = component.store[key];
+            current.instances && removeItem(component, current.instances);
+            current.updateSelfInstances && removeItem(component, current.updateSelfInstances);
+        } else {
+            component.store.instances && removeItem(component, component.store.instances);
+            component.store.updateSelfInstances && removeItem(component, component.store.updateSelfInstances);
         }
         component.base = null;
         var inner = component._component;
@@ -743,7 +645,7 @@
         }
         applyRef(component.__r, null);
     }
-    function _classCallCheck$1(instance, Constructor) {
+    function _classCallCheck(instance, Constructor) {
         if (!(instance instanceof Constructor)) throw new TypeError("Cannot call a class as a function");
     }
     function obaa(target, arr, callback) {
@@ -853,43 +755,54 @@
     }
     function render(vnode, parent, store, empty, merge) {
         parent = 'string' == typeof parent ? document.querySelector(parent) : parent;
-        obsStore(store);
+        if (store) if (store.data) obsStore(store); else {
+            options.isMultiStore = !0;
+            for (var key in store) if (store[key].data) obsStore(store[key], key);
+        }
         if (empty) while (parent.firstChild) parent.removeChild(parent.firstChild);
         if (merge) merge = 'string' == typeof merge ? document.querySelector(merge) : merge;
         return diff(merge, vnode, store, !1, parent, !1);
     }
-    function obsStore(store) {
-        if (store && store.data) {
-            store.instances = [];
-            store.updateSelfInstances = [];
-            extendStoreUpate(store);
-            obaa(store.data, function(prop, val, old, path) {
-                var patchs = {};
-                var key = fixPath(path + '-' + prop);
-                patchs[key] = !0;
-                store.update(patchs);
-            });
-        }
+    function obsStore(store, storeName) {
+        store.instances = [];
+        store.updateSelfInstances = [];
+        extendStoreUpate(store, storeName);
+        obaa(store.data, function(prop, val, old, path) {
+            var patchs = {};
+            var key = fixPath(path + '-' + prop);
+            patchs[key] = !0;
+            store.update(patchs);
+        });
     }
     function merge(vnode, merge, store) {
         obsStore(store);
         merge = 'string' == typeof merge ? document.querySelector(merge) : merge;
         return diff(merge, vnode, store);
     }
-    function extendStoreUpate(store) {
+    function extendStoreUpate(store, key) {
         store.update = function(patch) {
-            var _this = this;
-            var updateAll = matchGlobalData(this.globalData, patch);
             if (Object.keys(patch).length > 0) {
                 this.instances.forEach(function(instance) {
-                    if (updateAll || _this.updateAll || instance.constructor.updatePath && needUpdate(patch, instance.constructor.updatePath) || instance.H && needUpdate(patch, instance.H)) {
-                        if (instance.constructor.use) instance.using = getUse(store.data, instance.constructor.use); else if (instance.use) instance.using = getUse(store.data, 'function' == typeof instance.use ? instance.use() : instance.use);
+                    compute(instance, key);
+                    if (key) {
+                        if (instance.H && instance.H[key] && needUpdate(patch, instance.H[key])) {
+                            if (instance.use) getUse(store.data, ('function' == typeof instance.use ? instance.use() : instance.use)[key], instance.using, key);
+                            instance.update();
+                        }
+                    } else if (instance.H && needUpdate(patch, instance.H)) {
+                        if (instance.use) instance.using = getUse(store.data, 'function' == typeof instance.use ? instance.use() : instance.use);
                         instance.update();
                     }
                 });
                 this.updateSelfInstances.forEach(function(instance) {
-                    if (instance.I && needUpdate(patch, instance.I)) {
-                        _this.usingSelf = getUse(store.data, 'function' == typeof instance.useSelf ? instance.useSelf() : instance.useSelf);
+                    compute(instance, key);
+                    if (key) {
+                        if (instance.I && instance.I[key] && needUpdate(patch, instance.I[key])) {
+                            if (instance.useSelf) getUse(store.data, ('function' == typeof instance.useSelf ? instance.useSelf() : instance.useSelf)[key], instance.usingSelf, key);
+                            instance.updateSelf();
+                        }
+                    } else if (instance.I && needUpdate(patch, instance.I)) {
+                        instance.usingSelf = getUse(store.data, 'function' == typeof instance.useSelf ? instance.useSelf() : instance.useSelf);
                         instance.updateSelf();
                     }
                 });
@@ -897,13 +810,8 @@
             }
         };
     }
-    function matchGlobalData(globalData, diffResult) {
-        if (!globalData) return !1;
-        for (var keyA in diffResult) {
-            if (globalData.indexOf(keyA) > -1) return !0;
-            for (var i = 0, len = globalData.length; i < len; i++) if (includePath(keyA, globalData[i])) return !0;
-        }
-        return !1;
+    function compute(instance, isMultiStore) {
+        if (instance.compute) for (var ck in instance.compute) instance.computed[ck] = instance.compute[ck].call(isMultiStore ? instance.store : instance.store.data);
     }
     function needUpdate(diffResult, updatePath) {
         for (var keyA in diffResult) {
@@ -926,6 +834,60 @@
             if (index) if (isNaN(Number(item))) mpPath += '.' + item; else mpPath += '[' + item + ']'; else mpPath += item;
         });
         return mpPath;
+    }
+    function _classCallCheck$1(instance, Constructor) {
+        if (!(instance instanceof Constructor)) throw new TypeError("Cannot call a class as a function");
+    }
+    function _possibleConstructorReturn(self, call) {
+        if (!self) throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+        return call && ("object" == typeof call || "function" == typeof call) ? call : self;
+    }
+    function _inherits(subClass, superClass) {
+        if ("function" != typeof superClass && null !== superClass) throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
+        subClass.prototype = Object.create(superClass && superClass.prototype, {
+            constructor: {
+                value: subClass,
+                enumerable: !1,
+                writable: !0,
+                configurable: !0
+            }
+        });
+        if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
+    }
+    function define(name, ctor, config) {
+        if ('WeElement' === ctor.is) options.mapping[name] = ctor; else {
+            if ('string' == typeof config) config = {
+                css: config
+            }; else config = config || {};
+            var Comp = function(_Component) {
+                function Comp() {
+                    var _temp, _this, _ret;
+                    _classCallCheck$1(this, Comp);
+                    for (var _len = arguments.length, args = Array(_len), key = 0; key < _len; key++) args[key] = arguments[key];
+                    return _ret = (_temp = _this = _possibleConstructorReturn(this, _Component.call.apply(_Component, [ this ].concat(args))), 
+                    _this.compute = config.compute, _temp), _possibleConstructorReturn(_this, _ret);
+                }
+                _inherits(Comp, _Component);
+                Comp.prototype.render = function() {
+                    return ctor.call(this, this);
+                };
+                return Comp;
+            }(Component);
+            Comp.css = config.css;
+            Comp.propTypes = config.propTypes;
+            Comp.defaultProps = config.defaultProps;
+            for (var key in config) !function(key) {
+                if ('function' == typeof config[key]) Comp.prototype[key] = function() {
+                    return config[key].apply(this, arguments);
+                };
+            }(key);
+            storeHelpers.forEach(function(func) {
+                if (config[func] && 'function' !== config[func]) Comp.prototype[func] = function() {
+                    return config[func];
+                };
+            });
+            options.mapping[name] = Comp;
+        }
     }
     function rpx(str) {
         return str.replace(/([1-9]\d*|0)(\.\d*)*rpx/g, function(a, b) {
@@ -1118,7 +1080,8 @@
             }
             return global;
         }(),
-        styleCache: []
+        styleCache: [],
+        isMultiStore: !1
     };
     var stack = [];
     var getOwnPropertySymbols = Object.getOwnPropertySymbols;
@@ -1199,11 +1162,12 @@
     var id = 0;
     var Component = function() {
         function Component(props, store) {
-            _classCallCheck$1(this, Component);
+            _classCallCheck(this, Component);
             this.props = assign({}, this.constructor.defaultProps, props);
             this.elementId = id++;
             this.z = null;
             this.store = store;
+            this.computed = {};
         }
         Component.prototype.update = function(callback) {
             if (!this.A) {
@@ -1249,6 +1213,7 @@
     Array.prototype.size = function(length) {
         this.length = length;
     };
+    var storeHelpers = [ 'use', 'useSelf' ];
     var hasOwn = {}.hasOwnProperty;
     var encodeEntities = function(s) {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1287,6 +1252,7 @@
         for (var r = "", e = 0; e < n.length; e++) r += n[e].length + "-" + n[e];
         return u[r] || (u[r] = t(n));
     };
+    h.f = Fragment;
     var html = htm.bind(h);
     var WeElement = Component;
     var defineElement = define;
@@ -1314,7 +1280,7 @@
         obaa: obaa
     };
     options.root.omi = options.root.Omi;
-    options.root.Omi.version = 'omio-2.5.0';
+    options.root.Omi.version = 'omio-2.7.0';
     var Omi = {
         h: h,
         createElement: h,
