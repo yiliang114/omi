@@ -10,6 +10,7 @@ install:
 
 script:
   - cd ./packages/omiv
+  - ls
 
 # stages:
 #   - name: commit-message
