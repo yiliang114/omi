@@ -5,12 +5,13 @@ cache:
   yarn: true
   directories:
     - node_modules
+
+# omiv
+before_install:
+  - cd ./packages/omiv
+
 install:
   - yarn --frozen-lockfile --non-interactive
-
-script:
-  - cd ./packages/omiv
-  - ls
 
 # stages:
 #   - name: commit-message
